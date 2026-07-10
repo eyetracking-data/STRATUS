@@ -1,0 +1,3 @@
+dataset,training_participants,training_sequences,baum_welch_iterations,final_log_likelihood,component_mapping
+ETDD70,7,120,31,1179046.6939982271,"{0: 'Unstable', 1: 'Stable', 2: 'LossLong', 3: 'LossShort', 4: 'Movement'}"
+Autism,26,120,50,280095.84877778334,"{0: 'Unstable', 1: 'LossLong', 2: 'Movement', 3: 'Stable', 4: 'LossShort'}"

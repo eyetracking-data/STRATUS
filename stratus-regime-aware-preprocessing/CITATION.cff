@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software or artifact, please cite it using the metadata below."
+title: "STRATUS: Regime-Aware Local Operator Selection for Adaptive Time-Series Preprocessing"
+type: software
+authors:
+  - family-names: Landes
+    given-names: Jennifer
+    email: jennifer.landes@informatik.uni-regensburg.de
+    affiliation: University of Regensburg, Chair of Data Engineering
+  - family-names: Klettke
+    given-names: Meike
+    email: meike.klettke@informatik.uni-regensburg.de
+    affiliation: University of Regensburg, Chair of Data Engineering
+version: 1.0.0
+date-released: 2026-07-10
+license: MIT
+keywords:
+  - time-series preprocessing
+  - data cleaning
+  - hidden Markov models
+  - eye tracking
+  - data quality

@@ -1,0 +1,36 @@
+# Raw third-party datasets: never commit these.
+data/raw/etdd70/*
+data/raw/autism/*
+!data/raw/etdd70/.gitkeep
+!data/raw/autism/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# LaTeX build products (the checked-in preview PDF is intentional)
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.synctex.gz
+
+# Temporary notebook execution copies
+notebooks/*_run.ipynb

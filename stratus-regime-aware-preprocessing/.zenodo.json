@@ -1,0 +1,24 @@
+{
+  "title": "STRATUS: Regime-Aware Local Operator Selection for Adaptive Time-Series Preprocessing",
+  "upload_type": "software",
+  "description": "Implementation and reproducibility artifact for regime-aware local operator selection in noisy time series, evaluated on eye-tracking data.",
+  "creators": [
+    {
+      "name": "Landes, Jennifer",
+      "affiliation": "University of Regensburg"
+    },
+    {
+      "name": "Klettke, Meike",
+      "affiliation": "University of Regensburg"
+    }
+  ],
+  "keywords": [
+    "time series",
+    "data cleaning",
+    "HMM",
+    "eye tracking",
+    "preprocessing"
+  ],
+  "license": "MIT",
+  "access_right": "open"
+}

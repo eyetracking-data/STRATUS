@@ -1,0 +1,15 @@
+\begin{tabular}{lrrrrrrrrrrrr}
+\toprule
+method & mae & rmse & retention & long_hallucination & short_recovery & movement_preservation & stable_preservation & unstable_repair_gain & unstable_repair_score & plausibility_score & long_gap_conservatism & local_action_score \\
+\midrule
+Oracle_policy & 1.894 & 8.997 & 0.945 & 0.000 & 1.000 & 0.994 & 1.000 & 0.758 & 0.763 & 0.976 & 1.000 & 0.951 \\
+STRATUS-D & 5.436 & 34.894 & 0.945 & 0.000 & 1.000 & 0.914 & 0.971 & 0.338 & 0.338 & 0.977 & 1.000 & 0.845 \\
+short_gap_only & 10.660 & 58.861 & 0.945 & 0.000 & 1.000 & 0.880 & 1.000 & 0.000 & 0.000 & 0.971 & 1.000 & 0.776 \\
+STRATUS-BW & 4.828 & 33.623 & 0.928 & 0.000 & 0.000 & 0.918 & 0.965 & 0.342 & 0.342 & 0.976 & 1.000 & 0.645 \\
+robust_clip & 8.192 & 44.931 & 0.928 & 0.000 & 0.000 & 0.892 & 0.974 & 0.097 & 0.097 & 1.000 & 1.000 & 0.593 \\
+raw_degraded & 9.661 & 56.415 & 0.928 & 0.000 & 0.000 & 0.880 & 1.000 & 0.000 & 0.000 & 0.971 & 1.000 & 0.576 \\
+global_interpolate & 14.768 & 66.056 & 1.000 & 1.000 & 1.000 & 0.880 & 1.000 & 0.000 & 0.000 & 0.971 & 0.000 & 0.576 \\
+global_smooth & 24.011 & 46.202 & 0.938 & 0.102 & 0.325 & 0.390 & 0.000 & 0.551 & 0.634 & 0.978 & 0.898 & 0.449 \\
+interp_smooth & 28.035 & 53.912 & 1.000 & 1.000 & 1.000 & 0.392 & 0.000 & 0.550 & 0.632 & 0.977 & 0.000 & 0.405 \\
+\bottomrule
+\end{tabular}

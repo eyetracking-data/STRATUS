@@ -1,0 +1,626 @@
+\documentclass[sigconf,review]{acmart}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xspace}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric,backgrounds,calc}
+
+\graphicspath{{figures/}}
+
+\newcommand{\STRATUS}{\textsc{STRATUS}\xspace}
+\newcommand{\eg}{e.g.,\xspace}
+\newcommand{\ie}{i.e.,\xspace}
+\newcommand{\methodD}{\textsc{STRATUS-D}\xspace}
+\newcommand{\methodBW}{\textsc{STRATUS-BW}\xspace}
+
+\definecolor{stratusInput}{HTML}{EEF1F5}
+\definecolor{stratusBlue}{HTML}{DCEEFF}
+\definecolor{stratusBlueLine}{HTML}{2878B5}
+\definecolor{stratusPurple}{HTML}{E9E0FA}
+\definecolor{stratusPurpleLine}{HTML}{7354A3}
+\definecolor{stratusOrange}{HTML}{FFE7CC}
+\definecolor{stratusOrangeLine}{HTML}{C66A16}
+\definecolor{stratusYellow}{HTML}{FFF3BF}
+\definecolor{stratusYellowLine}{HTML}{B28704}
+\definecolor{stratusGreen}{HTML}{DDF4E4}
+\definecolor{stratusGreenLine}{HTML}{31824D}
+\definecolor{stratusTeal}{HTML}{DDF3F2}
+\definecolor{stratusTealLine}{HTML}{267B78}
+\definecolor{stratusRed}{HTML}{F9DEDE}
+\definecolor{stratusRedLine}{HTML}{B85050}
+\definecolor{stateStableFill}{HTML}{E7EFE8}
+\definecolor{stateStableLine}{HTML}{56725D}
+\definecolor{stateMoveFill}{HTML}{E2ECFF}
+\definecolor{stateMoveLine}{HTML}{355FA8}
+\definecolor{stateShortFill}{HTML}{FFF1C9}
+\definecolor{stateShortLine}{HTML}{C28A00}
+\definecolor{stateLongFill}{HTML}{F9E0E0}
+\definecolor{stateLongLine}{HTML}{B64A4A}
+\definecolor{stateUnstableFill}{HTML}{F5E1F4}
+\definecolor{stateUnstableLine}{HTML}{9B4D93}
+
+\setcopyright{none}
+\copyrightyear{2027}
+\acmYear{2027}
+\acmDOI{}
+\acmConference[EDBT '27]{30th International Conference on Extending Database Technology}{April 6--9, 2027}{Lille, France}
+\acmISBN{}
+\settopmatter{printacmref=false,printfolios=true}
+
+\begin{document}
+
+\title[STRATUS]{STRATUS: Regime-Aware Local Operator Selection for Adaptive Time-Series Preprocessing}
+
+\author{Jennifer Landes}
+\affiliation{%
+  \institution{University of Regensburg}
+  \department{Chair of Data Engineering}
+  \city{Regensburg}
+  \country{Germany}}
+\email{jennifer.landes@informatik.uni-regensburg.de}
+
+\author{Meike Klettke}
+\affiliation{%
+  \institution{University of Regensburg}
+  \department{Chair of Data Engineering}
+  \city{Regensburg}
+  \country{Germany}}
+\email{meike.klettke@informatik.uni-regensburg.de}
+
+\renewcommand{\shortauthors}{Landes and Klettke}
+
+\begin{abstract}
+Temporal recordings contain heterogeneous local quality conditions, yet preprocessing is commonly applied as one global operator sequence. Interpolation, smoothing, and robust replacement can consequently repair one region while damaging another. We present \STRATUS, a regime-aware model that represents adaptive preprocessing as local operator selection. Six pointwise diagnostics are converted into a persistent five-state regime path and then into an explicit action plan. We study two inference variants: \methodD uses interpretable diagnostic potentials with Viterbi decoding, whereas \methodBW learns a diagonal-Gaussian hidden Markov model by Baum--Welch and aligns its components with operational state semantics on training data. Both variants share the same state-to-action policy. A participant-separated eye-tracking case study uses 47 reference recordings from two datasets and evaluates 2,100 controlled corruptions. On a dataset-macro evaluation, \methodD achieves a local-action score of $0.841$ (95\% bootstrap interval $[0.834,0.847]$), recovers all injected short gaps, leaves all long gaps unfilled, and obtains the lowest reconstruction error among deployable methods. A learned HMM remains competitive numerically but fails to identify short recoverable losses. The results show that reconstruction error alone does not establish whether preprocessing actions are locally appropriate.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+ <concept>
+  <concept_id>10002951.10003227.10003351</concept_id>
+  <concept_desc>Information systems~Data cleaning</concept_desc>
+  <concept_significance>500</concept_significance>
+ </concept>
+ <concept>
+  <concept_id>10002951.10003317.10003331</concept_id>
+  <concept_desc>Information systems~Data streams</concept_desc>
+  <concept_significance>300</concept_significance>
+ </concept>
+ <concept>
+  <concept_id>10010147.10010257.10010293</concept_id>
+  <concept_desc>Computing methodologies~Machine learning algorithms</concept_desc>
+  <concept_significance>300</concept_significance>
+ </concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Information systems~Data cleaning}
+\ccsdesc[300]{Information systems~Data streams}
+\ccsdesc[300]{Computing methodologies~Machine learning algorithms}
+
+\keywords{time-series preprocessing, data cleaning, operator selection, hidden Markov models, data quality, eye tracking}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:introduction}
+
+Temporal data are rarely affected by one homogeneous quality problem. A single sensor recording may alternate between reliable observations, genuine rapid dynamics, short interruptions, prolonged data loss, and locally unstable artifacts. Standard preprocessing nevertheless tends to be specified as a global pipeline: one sequence of interpolation, smoothing, filtering, clipping, or outlier-handling operations is selected and applied uniformly to a complete file or dataset. Such pipelines are reproducible, but they silently assume that the same operation is appropriate at every time step.
+
+That assumption is often false. Interpolation may be defensible for a short gap whose surrounding observations provide local support, but it invents unsupported values when applied across a long unobserved interval. Smoothing may suppress measurement noise in a stable region, yet distort a genuine transition. Robust replacement may correct an isolated spike, yet damage a valid extreme observation. These examples expose a more fundamental problem than parameter tuning: preprocessing must decide \emph{which operation is appropriate under the local condition of the series}. From a data-management perspective, this is a local operator-selection problem rather than merely a signal-transformation problem \cite{rahm2000data,ilyas2019data,batini2009methodologies}.
+
+Existing cleaning systems combine constraints, statistics, external evidence, user feedback, or downstream objectives to select repairs \cite{rekatsinas2017holoclean,krishnan2016activeclean}. Time-series methods exploit temporal ordering for interpolation, denoising, segmentation, and anomaly handling, including learned imputation models \cite{box2015time,cao2018brits}. However, preprocessing is still commonly organized at the level of a complete dataset, file, or pipeline. This leaves three connected questions unresolved: how heterogeneous local quality conditions should be represented, how local decisions should be stabilized over time, and how they should be translated into an explicit sequence of cleaning actions.
+
+We introduce \STRATUS, a regime-aware model for adaptive preprocessing of noisy time series. Instead of committing to one global pipeline, \STRATUS derives an interpretable diagnostic vector at every time step, infers a temporally coherent sequence of operational regimes, and maps each regime to an action. The regimes are not semantic activities or domain labels. They represent preprocessing-relevant conditions: reliable data, genuine dynamics, recoverable loss, unrecoverable loss, and finite instability.
+
+We realize this idea in two comparable variants. \methodD uses interpretable diagnostic potentials and Viterbi decoding with an explicit persistence preference. \methodBW fits a diagonal-Gaussian hidden Markov model to robustly transformed diagnostic sequences by Baum--Welch learning. Because HMM component identities are permutation-invariant, learned components are aligned with operational state labels after training. Both variants use the same diagnostics, state space, and state-to-action policy; they differ in how the regime model is obtained.
+
+We evaluate the approach through an eye-tracking case study. Eye-tracking recordings are a demanding temporal-sensor setting because stable gaze, rapid movement, short and long tracking losses, jitter, spikes, and implausible coordinates may occur within one recording \cite{holmqvist2011eye,hessels2017noise,dar2021remodnav}. We extract participant-separated reference windows from two public datasets and inject controlled corruptions that provide state labels. The final experiment covers 14 held-out participant identifiers, ten random seeds, three severity levels, and five corruption settings. \methodD obtains a dataset-macro local-action score of $0.841$, compared with $0.761$ for a correct short-gap baseline and $0.642$ for \methodBW. It reconstructs all short losses and none of the long losses. Its unstable-state F1 remains limited, however, and the oracle policy itself is not perfect. These results support the decision framework without concealing its remaining weaknesses.
+
+The paper addresses the following research questions:
+\begin{description}[leftmargin=0pt,labelindent=0pt]
+    \item[RQ1] How can heterogeneous time-series preprocessing be represented as a sequence of local operator decisions rather than a fixed global pipeline?
+    \item[RQ2] How do interpretable diagnostic inference and Baum--Welch learning differ in their ability to produce operationally meaningful regimes?
+    \item[RQ3] How do reconstruction error and local action quality differ when assessing preprocessing methods?
+\end{description}
+
+The contributions are:
+\begin{itemize}[leftmargin=*]
+    \item a formulation of adaptive preprocessing as persistent local regime inference followed by an explicit state-to-action policy;
+    \item a two-level representation that separates observable diagnostics from operational regimes and executed repairs;
+    \item two directly comparable inference variants, \methodD and \methodBW, with a shared policy and an oracle analysis that separates regime errors from policy errors;
+    \item an evaluation protocol that distinguishes reconstruction, unsupported filling, recovery, movement preservation, stable preservation, and unstable-region repair;
+    \item a participant-separated case study on two heterogeneous eye-tracking datasets with dataset-macro aggregation and participant-level bootstrap intervals.
+\end{itemize}
+
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Data Cleaning and Repair Selection}
+
+Data cleaning addresses incomplete, inconsistent, implausible, and erroneous data and is a central data-management task \cite{rahm2000data,batini2009methodologies,ilyas2019data}. Cleaning operations alter data and must therefore be assessed against explicit quality criteria and intended uses rather than treated as neutral technical steps \cite{sadiq2018dataquality}. Modern systems combine heterogeneous evidence or adapt cleaning to analytical goals. HoloClean integrates constraints, external data, and statistical signals through probabilistic inference \cite{rekatsinas2017holoclean}; ActiveClean prioritizes records whose cleaning is consequential for model training \cite{krishnan2016activeclean}. These systems demonstrate that repair choice depends on context, but their principal unit is a record, cell, dataset, or analysis task. \STRATUS changes the decision granularity to temporal positions and constrains neighboring decisions through a persistent regime path.
+
+\subsection{Time-Series Preprocessing}
+
+Time-series preprocessing includes missing-value treatment, denoising, filtering, normalization, segmentation, and anomaly handling \cite{box2015time}. Learned imputation methods such as BRITS exploit temporal dependence to estimate unavailable values \cite{cao2018brits}. Such methods optimize a reconstructed sequence or downstream objective. They do not necessarily expose whether a value was preserved, interpolated, deliberately kept missing, or replaced because of local instability. \STRATUS is complementary: interpolation and robust correction remain available actions, but the primary output is an operational state path and its associated action plan. The model also permits different actions for superficially similar symptoms, such as high velocity caused by genuine movement versus an isolated spike.
+
+\subsection{Eye-Tracking Preprocessing}
+
+Eye-tracking data are sensitive to device characteristics, calibration, sampling rate, participant behavior, and task setting \cite{holmqvist2011eye}. Missing samples can arise from blinks, occlusion, or tracking failure, while coordinate noise and spikes coexist with valid rapid eye movements. Event-detection algorithms consequently depend on noise handling and parameterization. Noise-robust fixation detection and REMoDNaV, for example, address eye-movement classification under noisy measurements \cite{hessels2017noise,dar2021remodnav}. The operational regimes in \STRATUS must not be confused with fixation, saccade, or cognitive-state labels. A \textsc{Movement} regime only states that rapid local dynamics should be preserved.
+
+\subsection{Hidden-State Models for Operational Regimes}
+
+Hidden Markov models distinguish observed sequences from latent state sequences and represent temporal dependence through transitions \cite{rabiner1989tutorial}. Viterbi decoding returns a maximum-score or maximum-probability state path \cite{viterbi1967error}, while Baum--Welch estimates HMM parameters by expectation maximization \cite{baum1970maximization,dempster1977em}. Hidden semi-Markov models additionally represent durations explicitly \cite{yu2010hidden}. HMMs are suitable for persistent quality regimes because isolated diagnostic fluctuations should not automatically trigger another action. Yet a statistically coherent component is not automatically an operational state. \STRATUS therefore makes state semantics and actions explicit and evaluates whether learned components align with them.
+
+\section{Problem Formulation}
+\label{sec:problem}
+
+Let
+\begin{equation}
+X_{1:T}=(x_1,\ldots,x_T), \qquad x_t\in\mathbb{R}^{d}\cup\{\bot\},
+\end{equation}
+be a recorded time series, where $\bot$ denotes an unavailable observation. Metadata $\mathcal{M}$ contain timestamps, sampling information, and a plausibility domain $\Omega$. The present realization is offline: complete gap lengths and centered neighborhoods may use observations on both sides of $t$.
+
+Let $\mathcal{O}=\{o^{(1)},\ldots,o^{(K)}\}$ be a library of preprocessing actions. A conventional pipeline applies one fixed composition to the entire series. We instead seek a local action plan
+\begin{equation}
+A_{1:T}=(a_1,\ldots,a_T), \qquad a_t\in\mathcal{O},
+\end{equation}
+that produces $\widehat{X}_{1:T}=F(X_{1:T},A_{1:T})$. Directly selecting $a_t$ from $x_t$ is unreliable because the same symptom can imply different actions. We therefore define a finite operational state space $\mathcal{S}$ and a policy
+\begin{equation}
+\pi:\mathcal{S}\rightarrow\mathcal{O}, \qquad a_t=\pi(z_t).
+\end{equation}
+The regime $z_t$ is inferred from a diagnostic vector
+\begin{equation}
+d_t=\phi(X_{1:T},t,\mathcal{M}).
+\end{equation}
+The complete processing chain is
+\begin{equation}
+D_{1:T}\longrightarrow Z_{1:T}\longrightarrow A_{1:T}\longrightarrow\widehat{X}_{1:T}.
+\end{equation}
+
+A useful solution must satisfy four requirements. Diagnostics and regimes must be interpretable because they control data modification. The regime path must be temporally coherent. The policy must distinguish actions with different risk profiles, particularly supported from unsupported reconstruction. Finally, evaluation must separate numerical similarity from action appropriateness. We do not search arbitrary pipelines or learn the policy end to end. We assume an explicit operational state space and study whether the appropriate local state can be inferred.
+
+\section{The STRATUS Model}
+\label{sec:model}
+
+\subsection{Architecture}
+
+\STRATUS separates diagnostic extraction, regime modeling, sequence decoding, and action execution. Figure~\ref{fig:stratus_overview} shows the relation between the two inference variants. Diagnostics provide local evidence; either \methodD or \methodBW models latent regimes; Viterbi produces a persistent path; and a shared policy converts that path into local actions.
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily,
+  main/.style={draw,very thick,rounded corners=5pt,align=center,minimum height=2.55cm,minimum width=3.15cm,inner sep=7pt},
+  variant/.style={draw,very thick,rounded corners=4pt,align=center,minimum height=1.35cm,minimum width=3.70cm,inner sep=6pt},
+  arrow/.style={-{Latex[length=2.9mm]},very thick},
+  branch/.style={-{Latex[length=2.5mm]},thick},
+  label/.style={font=\scriptsize,align=center},
+  chip/.style={draw,rounded corners=7pt,very thick,minimum height=0.78cm,inner xsep=9pt,font=\scriptsize\bfseries},
+  legendlabel/.style={font=\small\bfseries\sffamily}
+]
+
+\node[main,fill=stratusInput,draw=gray!65] (input) at (0,0) {
+  \textbf{Noisy temporal data}\\[3pt]
+  $X_{1:T}$ and metadata $\mathcal{M}$\\
+  finite observations and $\bot$
+};
+
+\node[main,fill=stratusBlue,draw=stratusBlueLine] (diag) at (4.15,0) {
+  \textbf{Pointwise diagnostics}\\[3pt]
+  $d_t=[m_t,r_t,c_t,\alpha_t,u_t,p_t]$\\
+  local evidence at each $t$
+};
+
+\node[variant,fill=stratusPurple,draw=stratusPurpleLine] (dmodel) at (8.70,0.98) {
+  \textbf{STRATUS-D}\\
+  interpretable diagnostic potentials\\
+  explicit persistence preference
+};
+
+\node[variant,fill=stratusOrange,draw=stratusOrangeLine] (bwmodel) at (8.70,-0.98) {
+  \textbf{STRATUS-BW}\\
+  learned Gaussian emissions\\
+  Baum--Welch transition learning
+};
+
+\begin{scope}[on background layer]
+\node[draw=gray!55,dashed,rounded corners=7pt,fill=gray!4,
+      fit=(dmodel)(bwmodel),inner xsep=10pt,inner ysep=12pt,
+      label={[font=\bfseries\small]above:Alternative regime models}] (models) {};
+\end{scope}
+
+\node[main,fill=stratusYellow,draw=stratusYellowLine] (decode) at (13.45,0) {
+  \textbf{Sequence inference}\\[3pt]
+  Viterbi decoding\\
+  persistent path $Z^*_{1:T}$
+};
+
+\node[main,fill=stratusGreen,draw=stratusGreenLine] (policy) at (17.70,0) {
+  \textbf{State-to-action policy}\\[3pt]
+  $a_t=\pi(z_t)$\\
+  explicit local action plan
+};
+
+\node[main,fill=stratusTeal,draw=stratusTealLine] (output) at (21.95,0) {
+  \textbf{Preprocessed series}\\[3pt]
+  $\widehat{X}_{1:T}$\\
+  regime-conditioned execution
+};
+
+\draw[arrow] (input) -- node[label,above]{diagnose} (diag);
+\draw[branch] (diag.east) -- ++(0.48,0) |- (dmodel.west);
+\draw[branch] (diag.east) -- ++(0.48,0) |- (bwmodel.west);
+\draw[branch] (dmodel.east) -- ++(0.50,0) |- (decode.west);
+\draw[branch] (bwmodel.east) -- ++(0.50,0) |- (decode.west);
+\draw[arrow] (decode) -- node[label,above]{select} (policy);
+\draw[arrow] (policy) -- node[label,above]{execute} (output);
+
+\node[legendlabel] at (12.35,-2.55) {Operational states and actions};
+\node[chip,fill=stateStableFill,draw=stateStableLine] (stable) at (5.15,-3.55) {Stable $\rightarrow$ preserve};
+\node[chip,fill=stateMoveFill,draw=stateMoveLine,right=0.32cm of stable] (move) {Movement $\rightarrow$ preserve};
+\node[chip,fill=stateShortFill,draw=stateShortLine,right=0.32cm of move] (short) {LossShort $\rightarrow$ interpolate};
+\node[chip,fill=stateLongFill,draw=stateLongLine,right=0.32cm of short] (long) {LossLong $\rightarrow$ keep missing};
+\node[chip,fill=stateUnstableFill,draw=stateUnstableLine,right=0.32cm of long] (unstable) {Unstable $\rightarrow$ rolling median};
+
+\end{tikzpicture}%
+}
+\caption{STRATUS architecture. Pointwise diagnostics feed either the interpretable STRATUS-D model or the Baum--Welch-trained STRATUS-BW model. Both variants use Viterbi decoding and the same operational state-to-action policy. The lower legend separates the operational states from the workflow stages to avoid color ambiguity.}
+\Description{A colored left-to-right architecture diagram. A noisy time series is transformed into pointwise diagnostics. The diagram then branches into STRATUS-D and STRATUS-BW, merges at Viterbi sequence inference, and continues to a shared state-to-action policy and a preprocessed output. A separate lower legend shows five operational states and their actions: Stable and Movement preserve data, LossShort interpolates, LossLong keeps missing values, and Unstable applies a rolling-median correction.}
+\label{fig:stratus_overview}
+\end{figure*}
+
+The separation is deliberate. A threshold exceedance is evidence, not yet a cleaning decision. A large change may represent a valid transition or an artifact, and a missing value can belong to a short or long gap. The regime layer resolves this evidence in temporal context before values are modified.
+
+\subsection{Diagnostic Representation}
+
+For every time step, \STRATUS computes
+\begin{equation}
+d_t=[m_t,r_t,c_t,\alpha_t,u_t,p_t].
+\end{equation}
+Here $m_t$ indicates missingness, $r_t$ is the complete contiguous missing-run length, $c_t$ is first-order coordinate change divided by elapsed time, $\alpha_t$ is the absolute change in $c_t$ divided by elapsed time, $u_t$ is the distance from a centered seven-sample coordinate median, and $p_t$ indicates a finite coordinate outside $\Omega$. Dynamics are not computed across missing or implausible samples. Assigning the complete run length to each missing position prevents the beginning of a long gap from first being classified as short.
+
+\subsection{Operational States and Policy}
+
+The implementation uses
+\begin{equation}
+\mathcal{S}=\{\textsc{Stable},\textsc{Movement},\textsc{LossShort},\textsc{LossLong},\textsc{Unstable}\}.
+\end{equation}
+These are operational states rather than behavioral labels. Table~\ref{tab:states_actions} defines the common policy.
+
+\begin{table}[t]
+\centering
+\caption{Operational regimes and executed actions.}
+\label{tab:states_actions}
+\small
+\begin{tabular}{lll}
+\toprule
+State & Local condition & Action \\
+\midrule
+Stable & finite and plausible & preserve \\
+Movement & genuine rapid change & preserve \\
+LossShort & gap $\leq 0.5$ s & interpolate \\
+LossLong & gap $>0.5$ s & keep missing \\
+Unstable & finite extreme instability & rolling median \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Stable-region smoothing is disabled in all reported experiments. For \textsc{LossShort}, linear interpolation is applied only to samples assigned to that state. \textsc{LossLong} positions remain missing. \textsc{Unstable} positions are replaced by a centered seven-sample rolling median.
+
+\subsection{STRATUS-D: Diagnostic Potentials}
+
+\methodD assigns each state $s$ a compatibility score $e_t(s)$. Finite samples receive a Stable score of $2$. Samples at or above the 90th percentile of finite velocity receive a Movement score of $5$. Missing runs at most $0.5$ seconds receive a LossShort score of $8$, and longer runs receive a LossLong score of $10$. Finite plausibility violations or samples above the 99.5th percentile of jitter or acceleration receive an Unstable score of $7$. Incompatible state-observation combinations receive negative scores.
+
+Let $\tau(s',s)$ be a transition potential with self-transition bonus $1.25$ and switch penalty $-0.75$. \methodD computes
+\begin{equation}
+Z^*_{1:T}=\arg\max_{Z_{1:T}}\left[\sum_{t=1}^{T}e_t(z_t)+\sum_{t=2}^{T}\tau(z_{t-1},z_t)\right]
+\label{eq:diagnostic_viterbi}
+\end{equation}
+by Viterbi dynamic programming. The values are potentials rather than normalized probabilities: they encode calibrated diagnostic preferences and make the evidence for every state explicit.
+
+\subsection{STRATUS-BW: Learned Gaussian HMM}
+
+\methodBW uses the same six diagnostics. Run length, velocity, acceleration, and jitter are transformed by $\log(1+x)$; every feature is centered by its training median and scaled by its interquartile range. Missing diagnostic values are replaced by the training median. The transformed sequence is modeled by a five-component diagonal-Gaussian HMM:
+\begin{equation}
+ p(Z_{1:T},D_{1:T}\mid\Theta)
+ =\rho_{z_1}\prod_{t=2}^{T}A_{z_{t-1},z_t}
+ \prod_{t=1}^{T}\mathcal{N}(d_t;\mu_{z_t},\Sigma_{z_t}).
+\end{equation}
+K-means with 30 restarts initializes the component means; transitions begin with self-transition probability $0.92$. Baum--Welch updates start probabilities, transitions, means, and diagonal variances for at most 50 iterations. Viterbi then decodes the component path.
+
+Component indices have no semantics. We therefore solve a one-to-one assignment between components and operational state names that maximizes overlap with injected state labels on training sequences. Parameters are learned without state labels, but post-hoc component naming uses training labels. \methodBW is consequently not a fully unsupervised end-to-end system.
+
+\subsection{Decision Trace and Parameterization}
+
+Both variants expose a state path and the induced action sequence before execution. This intermediate representation is useful for auditing because a changed value can be traced to a decoded state and a policy rule. The implementation does not claim automatic parameter discovery: the operational threshold, state scores, transition potentials, and repair window are fixed before evaluation. Table~\ref{tab:model_parameters} lists the values used in all reported tests. Dataset-specific velocity, jitter, and acceleration thresholds are estimated from the corresponding training references, whereas the policy and temporal persistence parameters are shared.
+
+\begin{table}[t]
+\centering
+\caption{Fixed model and policy parameters.}
+\label{tab:model_parameters}
+\small
+\begin{tabular}{lr}
+\toprule
+Parameter & Value \\
+\midrule
+Short/long gap boundary & $0.5$ s \\
+Movement diagnostic quantile & $0.90$ \\
+Jitter/acceleration quantile & $0.995$ \\
+Stable/Movement scores & $2/5$ \\
+ShortLoss/LongLoss scores & $8/10$ \\
+Unstable score & $7$ \\
+Stay bonus / switch penalty & $1.25/-0.75$ \\
+Unstable repair window & $7$ samples \\
+BW components / self-transition init. & $5/0.92$ \\
+BW iterations / K-means restarts & $50/30$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The distinction between diagnostics and policy matters here. The $0.5$-second boundary determines which loss action is permissible, while diagnostic quantiles determine whether finite dynamics are treated as evidence for Movement or Unstable. Changing either layer can alter the final output, but for different reasons. We therefore report state-level F1 together with action-level outcomes instead of treating the system as a single opaque transformation.
+
+\subsection{Oracle Analysis and Complexity}
+
+An oracle executes the same policy with the injected regime path. It is not deployable; it separates errors in regime inference from limitations of the action policy. With $M$ states and $d$ diagnostics, Viterbi requires $O(TM^2)$ time and $O(TM)$ backpointer storage. Diagnostic extraction and action execution are linear for fixed windows. One Baum--Welch iteration costs $O(TM^2+TMd)$ per sequence; here $M=5$ and $d=6$.
+
+\section{Eye-Tracking Case Study}
+\label{sec:case_study}
+
+\subsection{Datasets and Harmonization}
+
+We use ETDD70 and the Eye-Tracking Autism dataset. ETDD70 contains binocular recordings of 70 Czech children during three reading tasks and was recorded at approximately 250 Hz \cite{sedmidubsky2025etdd70}. The autism dataset distributes experiments across 25 CSV exports; one export may contain several participants \cite{cilia2023autism}. Clinical labels are not used. The datasets provide heterogeneous real trajectories on which controlled quality states can be injected.
+
+The experiment requests the first ten CSV files from each local dataset folder. All ten ETDD70 files load successfully. For the autism data, one file lacks the required left-eye point-of-regard columns and is excluded, leaving nine files. Left and right valid gaze coordinates are averaged. Zeros and the autism missing marker ``-'' are treated as unavailable. ETDD70 timestamps are converted from microseconds; autism timestamps are normalized from milliseconds within each participant--trial--stimulus recording. Table~\ref{tab:datasets} summarizes the resulting data.
+
+\begin{table}[t]
+\centering
+\caption{Loaded data and participant-separated reference windows.}
+\label{tab:datasets}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Dataset & Files & IDs & Usable & Train/Test & Hz \\
+\midrule
+ETDD70 & 10 & 10 & 10 & 7/3 & 250.00 \\
+Autism & 9 & 58 & 37 & 26/11 & 59.88 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Coordinate plausibility bounds are estimated separately from finite raw values as the 99.9th percentile rounded upward to 100 coordinate units. This yields domains of $1600\times1000$ for ETDD70 and $1400\times1200$ for Autism. These are empirical coordinate domains, not physical screen-resolution claims.
+
+\subsection{Reference Windows and Participant Split}
+
+Candidate windows are formed within one participant and one recording. A run is broken by invalid coordinates, non-increasing timestamps, or a timestamp increment exceeding three times the recording median. The first continuous window spanning at least eight seconds is retained per recording; one candidate is then selected per participant with seed 42. All selected windows are fully finite. The median durations are 8.003 seconds for ETDD70 and 8.016 seconds for Autism.
+
+Participants are shuffled separately by dataset and divided into 70\% training and 30\% test sets. The split contains 33 training and 14 test identifiers. No identifier occurs in both partitions. The training data are used to calibrate and semantically align \methodBW; all reported evaluation results use held-out participants.
+
+\subsection{Training the Learned Variant}
+
+For each training reference window, corruptions are generated with five seeds, three severities, and five corruption settings. At most 120 sequences per dataset are sampled with seed 42 for HMM fitting. The ETDD70 model converges after 31 Baum--Welch iterations; the Autism model reaches the 50-iteration limit. All semantic component alignment uses training sequences only.
+
+\section{Experimental Design}
+\label{sec:experiments}
+
+\subsection{Controlled Corruptions}
+
+Every clean test window is degraded under ten random seeds, three severity multipliers $\{1.0,1.7,2.5\}$, and five settings:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{short gap:} a contiguous gap beginning at 25\% of the window, with length $2.5\%$ of the samples times severity;
+    \item \textbf{long gap:} a gap beginning at 55\%, with length $8\%$ times severity;
+    \item \textbf{jitter:} Gaussian coordinate noise over an 8\% interval, with standard deviation $8$ times severity;
+    \item \textbf{spikes:} $1.5\%$ of finite samples times severity are replaced by large deviations around the clean coordinate medians;
+    \item \textbf{mixed:} all four mechanisms, placed to avoid injecting finite artifacts inside missing intervals.
+\end{itemize}
+Natural Movement labels are assigned to the upper decile of clean point-to-point displacement before injected states overwrite overlapping labels. The design yields $14\times10\times3\times5=2{,}100$ corrupted test sequences.
+
+\subsection{Compared Methods}
+
+We compare nine methods. \textit{Raw} returns the degraded stream. \textit{Global interpolation} linearly fills every gap. \textit{Global smoothing} applies a centered seven-sample mean without prior filling; \textit{interpolation+smoothing} composes the two. \textit{Robust clipping} limits finite coordinates to the empirical domain. \textit{Short-gap only} first identifies complete missing runs and interpolates a run only when its total duration is at most $0.5$ seconds. It is therefore a valid, strong gap-specific baseline. \methodD, \methodBW, and the oracle use the shared state-to-action policy.
+
+\subsection{Metrics and Aggregation}
+
+Reconstruction is measured on finite output/reference pairs using Euclidean coordinate distance. MAE is the mean distance and RMSE is the root mean squared distance. Retention is the finite-output fraction. Local action behavior is captured by:
+\begin{align}
+H_{\mathrm{long}} &= \Pr(\widehat{x}_t\neq\bot\mid z_t=\textsc{LossLong}),\\
+R_{\mathrm{short}} &= \Pr(\widehat{x}_t\neq\bot\mid z_t=\textsc{LossShort}),
+\end{align}
+where lower $H_{\mathrm{long}}$ and higher $R_{\mathrm{short}}$ are preferable. Movement preservation is
+\begin{equation}
+P_{\mathrm{move}}=\mathrm{clip}\left(1-\left|\frac{\bar{v}_{\mathrm{out}}}{\bar{v}_{\mathrm{clean}}}-1\right|,0,1\right),
+\end{equation}
+using adjacent steps labeled Movement. Stable preservation $P_{\mathrm{stable}}$ is the fraction of clean Stable samples left numerically unchanged. For Unstable positions, repair gain is
+\begin{equation}
+G_{\mathrm{unstable}}=1-\frac{\mathrm{MAE}_{\mathrm{out,unstable}}}{\mathrm{MAE}_{\mathrm{degraded,unstable}}}.
+\end{equation}
+It is zero for no improvement, one for perfect restoration, and negative if processing worsens the region. A bounded local-action summary is
+\begin{equation}
+Q_{\mathrm{local}}=\frac{(1-H_{\mathrm{long}})+R_{\mathrm{short}}+P_{\mathrm{move}}+P_{\mathrm{stable}}+\mathrm{clip}(G_{\mathrm{unstable}},0,1)}{5}.
+\label{eq:local_score}
+\end{equation}
+This paper-specific score is not proposed as a universal quality metric; all components are reported separately. Regime inference is evaluated with class-conditional F1 only in cases where the class occurs.
+
+The primary aggregation first averages within each dataset and then gives both datasets equal weight. This prevents the larger Autism test group from dominating. A participant-weighted pooled view is retained as a sensitivity analysis. Hierarchical bootstrap intervals resample participants within each dataset for 2,000 replicates and report the 2.5th and 97.5th percentiles.
+
+\subsection{Experimental Units and Reproducibility}
+
+The participant identifier, not the corrupted sequence, is the independent experimental unit. Multiple seeds and severities characterize within-participant behavior and are averaged before participant-level resampling. Table~\ref{tab:design_matrix} summarizes the complete test design. All random choices use recorded seeds; reference-window selection and participant splitting use seed 42. The implementation stores every sequence-level result, the participant-level aggregation, dataset-macro and pooled summaries, the state-confusion results, and the Baum--Welch training summaries. This separation permits recalculation of aggregate tables without refitting the models.
+
+\begin{table}[t]
+\centering
+\caption{Evaluation design for held-out data.}
+\label{tab:design_matrix}
+\small
+\begin{tabular}{lr}
+\toprule
+Dimension & Count \\
+\midrule
+Datasets & 2 \\
+Held-out participant identifiers & 14 \\
+Corruption seeds & 10 \\
+Severity levels & 3 \\
+Corruption settings & 5 \\
+Corrupted test sequences & 2,100 \\
+Compared methods & 9 \\
+Sequence-method evaluations & 18,900 \\
+Bootstrap replicates & 2,000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Overall Performance}
+
+Table~\ref{tab:main_results} reports dataset-macro results. The oracle reaches $Q_{\mathrm{local}}=0.956$, confirming that the shared policy is effective but not perfect. Among deployable methods, \methodD obtains the highest local-action score, $0.841$ with a 95\% bootstrap interval of $[0.834,0.847]$. It also achieves the lowest MAE, $4.849$ with interval $[4.427,5.337]$. Its score combines zero long-gap hallucination, complete short-gap recovery, $0.874$ movement preservation, $0.981$ exact stable preservation, and $0.349$ unstable-region repair gain.
+
+\begin{table*}[t]
+\centering
+\caption{Dataset-macro results. $H_L$: long-gap hallucination; $R_S$: short-gap recovery; $P_M$: movement preservation; $P_S$: stable preservation; $G_U$: unstable repair gain. The best deployable value per column is bold.}
+\label{tab:main_results}
+\scriptsize
+\setlength{\tabcolsep}{4.1pt}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Method & MAE$\downarrow$ & $H_L\downarrow$ & $R_S\uparrow$ & $P_M\uparrow$ & $P_S\uparrow$ & $G_U\uparrow$ & $Q_{\mathrm{local}}\uparrow$ \\
+\midrule
+Oracle policy & 1.526 & 0.000 & 1.000 & 0.994 & 1.000 & 0.784 & 0.956 \\
+\midrule
+\methodD & \textbf{4.849} & \textbf{0.000} & \textbf{1.000} & \textbf{0.874} & 0.981 & 0.349 & \textbf{0.841} \\
+\methodBW & 5.542 & \textbf{0.000} & 0.000 & 0.852 & 0.973 & \textbf{0.387} & 0.642 \\
+Short-gap only & 10.408 & \textbf{0.000} & \textbf{1.000} & 0.807 & \textbf{1.000} & 0.000 & 0.761 \\
+Robust clipping & 7.993 & \textbf{0.000} & 0.000 & 0.818 & 0.984 & 0.101 & 0.581 \\
+Raw degraded & 9.697 & \textbf{0.000} & 0.000 & 0.807 & \textbf{1.000} & 0.000 & 0.561 \\
+Global interpolation & 13.865 & 1.000 & \textbf{1.000} & 0.807 & \textbf{1.000} & 0.000 & 0.561 \\
+Global smoothing & 19.095 & 0.074 & 0.236 & 0.489 & 0.000 & 0.617 & 0.464 \\
+Interpolation+smoothing & 22.569 & 1.000 & \textbf{1.000} & 0.489 & 0.000 & 0.617 & 0.432 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The corrected short-gap baseline is strong: it reconstructs all short gaps, leaves long gaps untouched, and exactly preserves Stable samples. Its $Q_{\mathrm{local}}$ is nevertheless $0.761$ ($[0.756,0.765]$) because it does not repair injected jitter or spikes and preserves less movement under mixed corruption. The non-overlapping intervals distinguish it from \methodD. Global interpolation illustrates why retention or gap recovery alone is insufficient: it obtains full retention and full short recovery but fills every long gap. Global smoothing has the strongest non-oracle unstable repair gain ($0.617$), yet changes all Stable samples and reduces movement preservation to $0.489$.
+
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\linewidth]{mae_action_tradeoff.pdf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\linewidth]{regime_f1_by_variant.pdf}
+\end{minipage}
+\caption{Left: dataset-macro reconstruction error and local-action quality. Right: class-conditional regime F1, averaged only over cases in which the state occurs.}
+\Description{Two plots. The left scatter plot places the oracle at low error and high local-action score, followed by STRATUS-D. The right grouped bar plot compares oracle, STRATUS-D, and STRATUS-BW across five operational regimes.}
+\label{fig:results_overview}
+\end{figure*}
+
+\subsection{Diagnostic Versus Learned Regimes}
+
+\methodD identifies both loss states with mean F1 $1.000$, Stable with $0.940$, Movement with $0.633$, and Unstable with $0.210$. \methodBW reaches $0.932$ for LossLong but $0.000$ for LossShort, $0.627$ for Stable, $0.300$ for Movement, and $0.261$ for Unstable. Its slightly higher Unstable F1 and repair gain do not compensate for assigning no samples to the short recoverable-loss semantics. Consequently, \methodBW retains only $0.928$ of samples and its local-action score falls to $0.642$ ($[0.633,0.651]$).
+
+The primary macro aggregation ranks \methodD ahead of \methodBW on both MAE and local actions. The participant-weighted sensitivity view changes the numerical ranking: \methodBW obtains MAE $4.828$ and \methodD $5.436$, because the larger Autism test group receives more weight. Their local-action scores remain separated ($0.645$ versus $0.845$). Thus numerical ranking is sensitive to dataset weighting, while the operational conclusion is stable.
+
+Figure~\ref{fig:qualitative_example} illustrates the practical effect on one held-out Autism window under mixed corruption. The diagnostic variant bridges the short missing interval near five seconds, whereas the learned variant leaves that interval unavailable. Both preserve most of the remaining trajectory. The example is not used as independent evidence; it visualizes the state-level finding that \methodBW does not acquire the ShortLoss action semantics.
+
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\linewidth]{example_stratus_d_autism.pdf}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\linewidth]{example_stratus_bw_autism.pdf}
+\end{minipage}
+\caption{Qualitative output on the same held-out Autism window with mixed corruption. Left: \methodD reconstructs the decoded short loss. Right: \methodBW leaves the corresponding interval missing. Only the horizontal gaze coordinate is shown.}
+\Description{Two line plots compare clean horizontal gaze with the preprocessed output for STRATUS-D and STRATUS-BW. The diagnostic variant fills a short missing interval, while the learned variant leaves it absent.}
+\label{fig:qualitative_example}
+\end{figure*}
+
+\subsection{Consistency Across Datasets and Severity}
+
+The local-action score of \methodD is $0.847$ on Autism and $0.834$ on ETDD70; its MAE is $5.876$ and $3.822$, respectively. The method is therefore not carried by only one dataset. Table~\ref{tab:breakdown} shows that \methodD exceeds the short-gap baseline and \methodBW on local actions in both datasets. The MAE comparison is heterogeneous: \methodBW is numerically better on Autism, while \methodD is better on ETDD70. This is precisely why the dataset-macro view and the action decomposition are both necessary.
+
+\begin{table*}[t]
+\centering
+\caption{Dataset and severity breakdown. The upper block compares the three deployable focal methods; the lower block reports \methodD across corruption severities.}
+\label{tab:breakdown}
+\small
+\setlength{\tabcolsep}{7pt}
+\begin{tabular}{llrrr}
+\toprule
+Scope & Method / severity & MAE$\downarrow$ & $G_U\uparrow$ & $Q_{\mathrm{local}}\uparrow$ \\
+\midrule
+Autism & \methodD & 5.876 & 0.329 & 0.847 \\
+Autism & \methodBW & \textbf{4.293} & 0.309 & 0.647 \\
+Autism & Short-gap only & 10.850 & 0.000 & 0.787 \\
+ETDD70 & \methodD & \textbf{3.822} & 0.370 & 0.834 \\
+ETDD70 & \methodBW & 6.790 & 0.466 & 0.638 \\
+ETDD70 & Short-gap only & 9.966 & 0.000 & 0.736 \\
+\midrule
+All datasets & Low severity & 3.520 & 0.133 & 0.806 \\
+All datasets & Medium severity & 5.177 & 0.361 & 0.849 \\
+All datasets & High severity & 7.612 & 0.519 & 0.878 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\methodD remains the highest-scoring deployable method at low, medium, and high severity. The increasing $Q_{\mathrm{local}}$ does not mean that stronger corruption is easier overall: MAE rises from $3.520$ to $7.612$. Instead, larger unstable artifacts provide stronger diagnostic evidence and permit a larger relative repair gain. At low severity, by contrast, subtle finite artifacts are harder to separate from genuine movement, explaining the smaller gain and the continuing weakness of the Unstable state.
+
+\subsection{Error Decomposition Through the Oracle}
+
+The oracle helps distinguish two ceilings. Its perfect state F1 establishes the best possible regime assignment under the injected labels, but its local-action score is $0.956$, not one. The gap is concentrated in unstable-region repair: a seven-sample rolling median reaches $G_U=0.784$ even when the affected positions are known exactly. The difference between oracle and \methodD therefore has two components. Part is caused by state inference, especially confusion between Movement and Unstable; part is caused by the limited corrective operator itself. Replacing only the regime model cannot close the latter gap.
+
+For loss handling, the decomposition is different. The oracle, \methodD, and the short-gap baseline all obtain perfect short recovery and zero long-gap hallucination. Here the policy is sufficient and \methodD reaches the oracle decisions. The learned model's zero short recovery is consequently attributable to semantic regime inference rather than to the interpolation action. This illustrates the value of keeping inference and execution separate in both architecture and evaluation.
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Answers to the Research Questions}
+
+\textbf{RQ1.} Local preprocessing can be represented as a persistent operational state path and an explicit policy. This representation distinguishes detection evidence from modification and produces an auditable action plan rather than only a transformed signal.
+
+\textbf{RQ2.} The interpretable diagnostic model aligns more reliably with the operational semantics needed by the policy. Baum--Welch learns coherent components and handles LongLoss well, but likelihood-based clusters do not naturally isolate ShortLoss. The result is not an argument against learned HMMs in general. It shows that a latent component optimized for distributional fit is not automatically a state with the action semantics required by preprocessing.
+
+\textbf{RQ3.} Reconstruction and local action quality are complementary. Global interpolation recovers every short gap but also hallucinates every long one. Global smoothing repairs strong artifacts but destroys exact Stable preservation and genuine dynamics. Even the relative MAE ranking of the two adaptive variants changes under macro versus participant-weighted aggregation, whereas the component-wise action analysis explains why their outputs differ.
+
+\subsection{Implications for Data Management}
+
+The main contribution is not another general-purpose HMM. It is the separation of local evidence, persistent operational state, action policy, and outcome evaluation. This separation makes three failure sources visible: inadequate diagnostics, a mismatched regime model, or an unsuitable action policy. It also allows a conservative policy to leave unsupported regions missing instead of optimizing retention at any cost. The same structure can accommodate stronger operators or learned policies, provided their preconditions and risks remain explicit.
+
+The comparison also argues against reporting one aggregate reconstruction metric. A method can obtain low error because it leaves difficult regions missing, or high retention because it fills unsupported intervals. The local metrics in this study are domain-instantiated, but the principle is broader: evaluation should reflect the intended action for each quality condition.
+
+\subsection{Threats to Validity and Limitations}
+
+\textbf{Synthetic labels.} Regime ground truth is created by controlled corruptions on clean windows. This enables operator-specific evaluation but does not reproduce every natural tracking failure. Results should be interpreted as a controlled stress test, not complete validation on naturally annotated artifacts.
+
+\textbf{Domain and sample size.} The study uses two eye-tracking datasets, 47 usable participant identifiers, and 14 held-out identifiers. It demonstrates cross-dataset behavior within one sensor domain, not universal transfer to other time-series domains. Two dataset-provided autism identifiers are non-numeric ``Unidentified'' labels. Each is assigned wholly to one partition, preventing direct identifier overlap, but their underlying participant independence cannot be independently verified.
+
+\textbf{Offline processing.} Complete gap length and centered windows require future context. The present method is unsuitable for strictly causal streaming without replacing these diagnostics with online estimates or a duration-aware model.
+
+\textbf{Calibration and policy scope.} Diagnostic quantiles, transition potentials, the $0.5$-second gap threshold, and the rolling-median action are fixed for this case study. Unstable-state F1 for \methodD is only $0.210$, and the oracle's unstable repair gain is $0.784$ rather than one. The action policy therefore remains improvable even under perfect state labels.
+
+\textbf{Metric construction.} Exact Stable preservation is intentionally strict, and $Q_{\mathrm{local}}$ gives five components equal weight. Different applications may require other tolerances or weights. For this reason, the score is accompanied by all component values and should not be treated as a universal data-quality index.
+
+\textbf{Learned-state supervision.} Baum--Welch parameter estimation is unsupervised, but component names are assigned with injected training labels. \methodBW is therefore a learned comparison with supervised semantic alignment, not a fully unsupervised discovery method.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+\STRATUS formulates adaptive time-series preprocessing as persistent local operator selection. Pointwise diagnostics are translated into operational regimes and then into an explicit action plan. In a participant-separated eye-tracking stress test, the interpretable diagnostic variant combines conservative long-gap handling, complete short-gap recovery, movement and stable preservation, and partial repair of unstable regions. It outperforms a valid short-gap baseline and a Baum--Welch-trained comparison on dataset-macro local-action quality. The learned model's failure to recover short losses illustrates the difference between statistically coherent latent components and states with operational repair semantics.
+
+The remaining work is equally clear. Unstable-regime detection and correction require improvement; the framework must be evaluated on naturally annotated errors and additional sensor domains; and an online version must avoid future context. These are extensions of the same central idea: preprocessing decisions should be local, persistent, explicit, and evaluated against the action they were intended to perform.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}
