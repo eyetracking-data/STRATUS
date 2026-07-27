@@ -1,0 +1,64 @@
+{
+  "comparison": {
+    "Pointwise-D": "row-wise argmax of STRATUS-D diagnostic potentials",
+    "STRATUS-D": "Viterbi path over the same potentials; stay_bonus=1.25, switch_penalty=-0.75"
+  },
+  "shared_action_policy": true,
+  "n_files_per_dataset": 10,
+  "segment_seconds": 8.0,
+  "max_segments_per_participant": 1,
+  "minimum_valid_fraction": 0.98,
+  "test_fraction": 0.3,
+  "split_seed": 42,
+  "evaluation_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "severities": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "corruptions": [
+    "short_gap",
+    "long_gap",
+    "jitter",
+    "spike",
+    "mixed"
+  ],
+  "bootstrap_replicates": 2000,
+  "loaded_files": {
+    "ETDD70": [
+      "Subject_1003_combined_raw.csv",
+      "Subject_1009_combined_raw.csv",
+      "Subject_1016_combined_raw.csv",
+      "Subject_1019_combined_raw.csv",
+      "Subject_1021_combined_raw.csv",
+      "Subject_1033_combined_raw.csv",
+      "Subject_1038_combined_raw.csv",
+      "Subject_1040_combined_raw.csv",
+      "Subject_1058_combined_raw.csv",
+      "Subject_1065_combined_raw.csv"
+    ],
+    "Autism": [
+      "1.csv",
+      "10.csv",
+      "11.csv",
+      "12.csv",
+      "13.csv",
+      "14.csv",
+      "15.csv",
+      "16.csv",
+      "17.csv",
+      "18.csv"
+    ]
+  }
+}
