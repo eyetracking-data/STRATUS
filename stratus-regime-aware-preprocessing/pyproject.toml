@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stratus-preprocessing"
-version = "1.0.0"
-description = "Regime-aware local operator selection for adaptive time-series preprocessing"
+version = "1.1.0"
+description = "Auditable local operator selection with selective temporal coupling"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = {text = "MIT"}
@@ -13,7 +13,7 @@ authors = [
   {name = "Jennifer Landes", email = "jennifer.landes@informatik.uni-regensburg.de"},
   {name = "Meike Klettke", email = "meike.klettke@informatik.uni-regensburg.de"}
 ]
-keywords = ["time series", "data cleaning", "HMM", "eye tracking", "preprocessing"]
+keywords = ["time series", "data cleaning", "hybrid HMM", "eye tracking", "preprocessing"]
 dependencies = [
   "numpy>=2.0,<3",
   "pandas>=2.2,<4",

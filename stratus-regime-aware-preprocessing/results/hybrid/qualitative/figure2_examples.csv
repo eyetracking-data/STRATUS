@@ -1,0 +1,3 @@
+dataset,participant,segment,corruption,severity,seed,panel,hybrid_p_Q_local,stratus_h_Q_local,hybrid_p_mae,stratus_h_mae,state_disagreement_fraction
+ETDD70,1003,ETDD70__1003__seg0,mixed,medium,5,(a) ETDD70: mixed corruption,0.9840965586087842,0.9923319118177613,1.4471102079844766,1.2742776839478989,0.03696303696303696
+Autism,37,Autism__37__seg18,mixed,medium,2,(b) Autism: ambiguous unstable region,0.9057481479334475,0.9483392701907715,8.898191696685243,7.231042258772485,0.1311881188118812
