@@ -1,6 +1,6 @@
 {
-  "reference_file": "/mnt/data/STRATUS_Hybrid_realdata_runner/clean_reference_segments.csv",
-  "split_file": "/mnt/data/STRATUS_Hybrid_realdata_runner/participant_split_v7.csv",
+  "reference_file": "external/clean_reference_segments.csv",
+  "split_file": "results/tables/participant_split.csv",
   "quick_mode": false,
   "n_reference_segments": 47,
   "n_outer_train_participants": 33,
@@ -10,6 +10,6 @@
   "best_transition_strength": 1.0,
   "bootstrap_replicates": 2000,
   "runtime_seconds": 133.85411500930786,
-  "primary_contrast": "Hybrid-HMM versus Hybrid-Pointwise",
-  "interpretation_rule": "The HMM contributes independent value only when the paired Hybrid-HMM minus Hybrid-Pointwise Q_local interval is above zero without worsening safety components."
+  "primary_contrast": "STRATUS-H versus Hybrid-P",
+  "interpretation_rule": "STRATUS-H contributes independent temporal value only when the paired STRATUS-H minus Hybrid-P Q_local interval is above zero without worsening safety components."
 }
