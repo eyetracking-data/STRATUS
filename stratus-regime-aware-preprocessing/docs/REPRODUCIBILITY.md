@@ -1,22 +1,48 @@
 # Reproducibility notes
 
-## Fixed experimental design
+## Reported experimental design
 
-- at most 10 source CSV files per dataset;
-- one valid 8-second reference segment per participant;
-- minimum valid fraction: 0.98;
-- participant-level split, test fraction 0.30, split seed 42;
-- corruption seeds 0--9;
-- severity levels: low, medium, high;
-- corruption types: short gap, long gap, jitter, spike, mixed;
+- 47 participant-specific reference windows: 10 ETDD70 and 37 Autism;
+- participant-separated outer split: 33 train/development identifiers and 14 held-out identifiers;
+- inner development split: 8 identifiers, leaving 25 for inner fitting;
+- primary test: 10 corruption seeds, 3 severities, and 5 corruption settings per held-out identifier (2,100 degraded sequences);
+- shifted-generator check: 2 seeds, 3 severities, 5 settings, and the same 14 held-out identifiers (420 sequences);
 - short/long gap boundary: 0.5 seconds;
-- Baum--Welch training seeds 0--4, at most 120 sequences per dataset, at most 50 iterations;
-- K-means initialization with 30 restarts.
+- hybrid observation regularization selected on development data: `C = 1`;
+- temporal transition strength selected on development data: `lambda = 1`;
+- participant-bootstrap replicates: 2,000.
 
-## Final outputs
+The exact participant split is in `results/tables/participant_split.csv`. The extraction summary is in `results/tables/reference_extraction_summary.csv`.
 
-Use `results/tables/macro_results_with_ci.csv` as the primary result table. The pooled table is a sensitivity analysis because the held-out Autism set is larger than the ETDD70 set.
+## Primary manuscript outputs
 
-## No additional run required
+For the current hybrid evaluation, use:
 
-The committed tables, plots, and executed notebook correspond to the final v7 run used for the manuscript. Re-execution is optional and intended only for independent reproduction.
+- `results/hybrid/primary/macro_results.csv` for the dataset-macro headline values;
+- `results/hybrid/primary/paired_bootstrap_contrasts.csv` for the matched contrasts;
+- `results/hybrid/primary/participant_results.csv` for participant-level aggregation;
+- `results/hybrid/primary/sequence_results.csv` for sequence-level results;
+- `results/hybrid/primary/observation_C_tuning.csv` and `transition_strength_tuning.csv` for development selection;
+- `results/hybrid/primary/run_summary.json` for the fixed run summary.
+
+The older tables under `results/tables/` are retained because they support the original diagnostic/STRATUS-BW and context-baseline analyses. They should not be mistaken for the current four-model hybrid runner output.
+
+## Verification without refitting
+
+The committed results can be checked directly:
+
+```bash
+python scripts/verify_hybrid_results.py
+```
+
+This verifies the reported headline values, expected row counts, hard-gap safety behavior, and the primary and shifted STRATUS-H-versus-Hybrid-P contrasts. The repository test suite can be run with:
+
+```bash
+pytest
+```
+
+A local copy of the reference file is only needed to verify its SHA-256 hash or to rerun the full experiments.
+
+## Reference data
+
+The coordinate-level reference file is intentionally not committed. Its expected structure and SHA-256 are documented in `docs/REFERENCE_DATA.md`. Raw dataset acquisition and directory layout are documented in `data/README.md` and `THIRD_PARTY_DATA.md`.

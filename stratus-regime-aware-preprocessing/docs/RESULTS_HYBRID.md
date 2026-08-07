@@ -54,13 +54,13 @@ the larger architectural change.
 
 ## Qualitative held-out examples
 
-Paper Figure 2 visualizes two mixed-corruption test sequences:
+The manuscript qualitative figure (currently Figure 4) visualizes two mixed-corruption test sequences:
 
 - ETDD70 participant 1003, `ETDD70__1003__seg0`, medium severity, seed 5;
 - Autism participant 37, `Autism__37__seg18`, medium severity, seed 2.
 
 The exact per-example values are committed in
-`results/hybrid/qualitative/figure2_examples.csv`. Hybrid-P and STRATUS-H use
+`results/hybrid/qualitative/figure2_examples.csv` (the filename is retained for artifact stability). Hybrid-P and STRATUS-H use
 the same local model and policy; the state strips therefore isolate the effect
 of temporal decoding. The examples were chosen after evaluation to make that
 mechanism visible and are not used for inference.
