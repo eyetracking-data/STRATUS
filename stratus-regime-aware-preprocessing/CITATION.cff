@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software or artifact, please cite it using the metadata below."
-title: "STRATUS: Regime-Aware Local Operator Selection for Adaptive Time-Series Preprocessing"
+title: "STRATUS: Selective Temporal Coupling for Auditable Time-Series Preprocessing"
 type: software
 authors:
   - family-names: Landes
@@ -11,8 +11,8 @@ authors:
     given-names: Meike
     email: meike.klettke@informatik.uni-regensburg.de
     affiliation: University of Regensburg, Chair of Data Engineering
-version: 1.0.0
-date-released: 2026-07-10
+version: 1.1.0
+date-released: 2026-08-07
 license: MIT
 keywords:
   - time-series preprocessing
