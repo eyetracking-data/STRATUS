@@ -47,7 +47,7 @@ The table `pointwise_paired_differences.csv` reports participant-paired,
 dataset-macro bootstrap intervals for `Pointwise-D` minus `STRATUS-D`.
 
 `stratus_d_reproduction_check.csv` compares the STRATUS-D rerun with the
-committed v7 result tables and the script fails if any reported metric differs
+committed diagnostic-baseline result tables and the script fails if any reported metric differs
 by more than `1e-12`.
 
 ## Add to GitHub
